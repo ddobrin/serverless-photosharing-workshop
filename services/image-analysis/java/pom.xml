@@ -19,11 +19,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <maven.compiler.source>17</maven.compiler.source>        
         <spring-cloud.version>2022.0.0-RC1</spring-cloud.version>
-        <native-buildtools.version>0.9.17</native-buildtools.version>
         <testcontainers.version>1.17.4</testcontainers.version>
-        <!-- <jvm-image-type>jit</jvm-image-type>
-        <native-image-type>aot</native-image-type>
-        <version.slf4j>2.0.3</version.slf4j> -->
     </properties>
     <dependencies>
         <dependency>
@@ -35,11 +31,6 @@
 			<artifactId>spring-cloud-function-web</artifactId>
 		</dependency>
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-bindings</artifactId>
-            <version>1.10.0</version>
-        </dependency>
-        <dependency>
             <groupId>com.google.cloud.functions</groupId>
             <artifactId>functions-framework-api</artifactId>
             <version>1.0.4</version>
@@ -48,17 +39,14 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-firestore</artifactId>
-            <!-- <version>3.3.0</version> -->
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-vision</artifactId>
-            <!-- <version>3.0.1</version> -->
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-storage</artifactId>
-            <!-- <version>2.10.0</version> -->
         </dependency>        
 		<dependency>
 			<groupId>com.google.api</groupId>
@@ -125,13 +113,7 @@
                     <artifactId>jsr305</artifactId>
                 </exclusion>
             </exclusions>            
-			<!-- <version>2.18.5</version> -->
 		</dependency>
-        <!-- <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.47.0</version>
-        </dependency>         -->
 
         <!-- Test -->
         <dependency>
@@ -139,27 +121,6 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>         -->
-        <!-- <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${version.slf4j}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-            <version>${version.slf4j}</version>
-        </dependency>        
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>4.1.84.Final</version>
-        </dependency> -->
 
         <dependency>
             <groupId>org.testcontainers</groupId>
@@ -170,31 +131,49 @@
 
     <build>
         <plugins>
-        <plugin>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
-            <configuration>
-                <image>
-                    <buildpacks>
-                    <buildpack>gcr.io/paketo-buildpacks/bellsoft-liberica:9.9.0-ea</buildpack>
-                    <buildpack>gcr.io/paketo-buildpacks/java-native-image</buildpack>
-                    </buildpacks>
-                    <env>
-                        <BP_NATIVE_IMAGE>1</BP_NATIVE_IMAGE>
-                        <BP_JVM_VERSION>17</BP_JVM_VERSION>
-                        <!-- use only if image size is more important than start-up speed -->
-                        <!-- <BP_BINARY_COMPRESSION_METHOD>upx</BP_BINARY_COMPRESSION_METHOD> -->
-                        <BP_NATIVE_IMAGE_BUILD_ARGUMENTS>
-                            <!-- -initialize-at-build-time=org.slf4j.impl.SimpleLogger,org.slf4j.LoggerFactory,org.slf4j.impl.StaticLoggerBinder,io.grpc.netty.shaded.io.netty.util.internal.logging.Slf4JLoggerFactory -->
-                            <!-- -initialize-at-build-time=org.slf4j.jul.JDK14LoggerAdapter,org.slf4j.LoggerFactory -->
-                            --initialize-at-build-time=ch.qos.logback.classic.Logger --trace-object-instantiation=ch.qos.logback.classic.Logger
-                        </BP_NATIVE_IMAGE_BUILD_ARGUMENTS>                                    
-                    </env>                
-                </image>
-            </configuration>
-        </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <image>
+                        <name>${project.artifactId}-maven:jit</name>            
+                    </image>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
+	<profiles>
+		<profile>
+			<id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <configuration>
+                            <image>
+                                <buildpacks>
+                                <!-- <buildpack>gcr.io/paketo-buildpacks/bellsoft-liberica:9.9.0-ea</buildpack>
+                                <buildpack>gcr.io/paketo-buildpacks/java-native-image</buildpack> -->                                
+                                </buildpacks>
+                                <name>${project.artifactId}-maven:aot</name>
+                                <builder>dashaun/java-native-builder-multiarch:7.37.0</builder>
+                                <env>
+                                    <BP_NATIVE_IMAGE>1</BP_NATIVE_IMAGE>
+                                    <BP_JVM_VERSION>17</BP_JVM_VERSION>
+                                    <!-- use only if image size is more important than start-up speed -->
+                                    <!-- <BP_BINARY_COMPRESSION_METHOD>upx</BP_BINARY_COMPRESSION_METHOD> -->
+                                </env>                
+                            </image>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+
 
     <pluginRepositories>
         <pluginRepository>
