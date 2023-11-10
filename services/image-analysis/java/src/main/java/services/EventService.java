@@ -28,13 +28,14 @@ public class EventService {
     this.firestore = firestore;
   }
 
-  public ApiFuture<WriteResult> storeImage(String fileName, List<String> labels, String mainColor) {
+  public ApiFuture<WriteResult> storeImage(String fileName, List<String> labels, String mainColor, String modelResponse) {
     DocumentReference doc = firestore.collection("pictures").document(fileName);
 
     Map<String, Object> data = new HashMap<>();
     data.put("labels", labels);
     data.put("color", mainColor);
     data.put("created", new Date());
+    data.put("modelResponse", modelResponse);
 
     return doc.set(data, SetOptions.merge());
   }

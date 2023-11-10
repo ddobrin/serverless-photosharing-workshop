@@ -67,7 +67,7 @@ public class ImageAnalysisApplicationContainerTests {
   @Test
   void testEventRepositoryStoreImage() throws ExecutionException, InterruptedException {
     ApiFuture<WriteResult> writeResult = eventService.storeImage("testImage",
-        Collections.singletonList("label"), "#FFFFFF");
+        Collections.singletonList("label"), "#FFFFFF", "Test Model Response");
     assertNotNull(writeResult.get().getUpdateTime());
   }
 }

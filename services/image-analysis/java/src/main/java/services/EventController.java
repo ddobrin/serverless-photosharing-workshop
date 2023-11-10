@@ -43,13 +43,23 @@ import services.actuator.StartupCheck;
 
 import com.google.cloud.vision.v1.*;
 import com.google.cloud.vision.v1.Feature.Type;
+import com.google.cloud.MetadataConfig;
 import com.google.cloud.firestore.*;
 import com.google.api.core.ApiFuture;
 
+//LangChain4j packages
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.vertexai.VertexAiChatModel;
+
 @RestController
 public class EventController {
-    private static final Logger logger = LoggerFactory.getLogger(EventController.class);
-    
+  private static final Logger logger = LoggerFactory.getLogger(EventController.class);
+  
+  private static final String projectID = MetadataConfig.getProjectId();
+  private static final String zone = MetadataConfig.getZone();
+
   private static final List<String> requiredFields = Arrays.asList("ce-id", "ce-source", "ce-type", "ce-specversion");
 
   @Autowired
@@ -127,11 +137,21 @@ public class EventController {
         Feature featureSafeSearch = Feature.newBuilder()
             .setType(Type.SAFE_SEARCH_DETECTION)
             .build();
-            
+
+        Feature featureTextDetection = Feature.newBuilder()
+            .setType(Type.TEXT_DETECTION)
+            .build();
+
+        Feature featureLogoDetection = Feature.newBuilder()
+            .setType(Type.LOGO_DETECTION)
+            .build();
+
         AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
             .addFeatures(featureLabel)
             .addFeatures(featureImageProps)
             .addFeatures(featureSafeSearch)
+            .addFeatures(featureTextDetection)
+            .addFeatures(featureLogoDetection)
             .setImage(image)
             .build();
         
@@ -151,7 +171,7 @@ public class EventController {
             logger.info("Error: " + response.getError().getMessage());
             return new ResponseEntity<String>(msg, HttpStatus.BAD_REQUEST);
         }
-
+        
         List<String> labels = response.getLabelAnnotationsList().stream()
             .map(annotation -> annotation.getDescription())
             .collect(Collectors.toList());
@@ -188,10 +208,50 @@ public class EventController {
             logger.info("Safe? " + isSafe);
         }
 
+        logger.info("Logo Annotations:");
+        for (EntityAnnotation annotation : response.getLogoAnnotationsList()) {
+          logger.info("Logo: " + annotation.getDescription());
+
+          List<Property> properties = annotation.getPropertiesList();
+          for (Property property : properties) {
+            logger.info(String.format("Name: %s, Value: %s"), property.getName(), property.getValue());
+          }
+        }
+
+        String prompt = "Explain the text ";
+        String textElements = "";
+        
+        logger.info("Text Annotations:");
+        for (EntityAnnotation annotation : response.getTextAnnotationsList()) {
+          textElements = annotation.getDescription();
+          prompt += textElements + " ";
+          logger.info("Text: " + textElements);
+          
+          if(textElements.matches("^[a-zA-Z0-9]+$"))
+            prompt += textElements;          
+          }
+        
+        Response<AiMessage> modelResponse = null;          
+        if (prompt.length() > 0) {
+          VertexAiChatModel vertexAiChatModel = VertexAiChatModel.builder()
+                      .endpoint("us-central1-aiplatform.googleapis.com:443")
+                      .project(projectID)
+                      .location(zone)
+                      .publisher("google")
+                      .modelName("chat-bison@001")
+                      .temperature(1.0)
+                      .maxOutputTokens(50)
+                      .topK(0)
+                      .topP(0.0)
+                      .maxRetries(3)
+                      .build();
+          modelResponse = vertexAiChatModel.generate(UserMessage.from(prompt));
+          logger.info("Result: " + modelResponse.content().text());
+        }
+
         // Saving result to Firestore
-        if (isSafe) {
-          ApiFuture<WriteResult> writeResult = eventService.storeImage(fileName, labels,
-              mainColor);
+        if (isSafe && modelResponse != null) {
+          ApiFuture<WriteResult> writeResult = eventService.storeImage(fileName, labels, mainColor, modelResponse.content().text());
           logger.info("Picture metadata saved in Firestore at " + writeResult.get().getUpdateTime());
         }
     }
