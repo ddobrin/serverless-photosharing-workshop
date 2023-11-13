@@ -52,6 +52,7 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.vertexai.VertexAiChatModel;
+import dev.langchain4j.model.vertexai.VextexAiLanguageModel;
 
 @RestController
 public class EventController {
@@ -116,6 +117,13 @@ public class EventController {
     String bucketName = (String)body.get("bucket");
 
     logger.info("New picture uploaded " + fileName);
+
+    if(fileName == null){
+        msg = "Missing expected body element: file name";
+        System.out.println(msg);
+        return new ResponseEntity<String>(msg, HttpStatus.BAD_REQUEST);
+    }
+
 
     try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
         List<AnnotateImageRequest> requests = new ArrayList<>();
@@ -227,10 +235,10 @@ public class EventController {
           prompt += textElements + " ";
           logger.info("Text: " + textElements);
           
-          if(textElements.matches("^[a-zA-Z0-9]+$"))
-            prompt += textElements;          
-          }
-        
+          // if(textElements.matches("^[a-zA-Z0-9]+$"))
+          prompt += textElements;          
+        }
+
         Response<AiMessage> modelResponse = null;          
         if (prompt.length() > 0) {
           VertexAiChatModel vertexAiChatModel = VertexAiChatModel.builder()
@@ -246,7 +254,25 @@ public class EventController {
                       .maxRetries(3)
                       .build();
           modelResponse = vertexAiChatModel.generate(UserMessage.from(prompt));
-          logger.info("Result: " + modelResponse.content().text());
+          logger.info("Result Chat Model: " + modelResponse.content().text());
+        }
+
+        // String textResponse = null;          
+        if (prompt.length() > 0) {
+          VextexAiLanguageModel vertexAiTextModel = VextexAiLanguageModel.builder()
+                      .endpoint("us-central1-aiplatform.googleapis.com:443")
+                      .project(projectID)
+                      .location(zone)
+                      .publisher("google")
+                      .modelName("text-bison@001")
+                      .temperature(1.0)
+                      .maxOutputTokens(50)
+                      .topK(0)
+                      .topP(0.0)
+                      .maxRetries(3)
+                      .build();
+          Response<String> textResponse = vertexAiTextModel.generate(prompt);
+          logger.info("Result Text Model: " + textResponse.content());
         }
 
         // Saving result to Firestore
