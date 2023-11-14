@@ -23,10 +23,12 @@ import java.util.concurrent.ExecutionException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.stream.*;
-import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
+import com.google.cloud.aiplatform.v1.Endpoint;
+import com.google.cloud.aiplatform.v1.EndpointName;
+import com.google.cloud.aiplatform.v1.EndpointServiceClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import services.actuator.StartupCheck;
 
+// Vision API packages
 import com.google.cloud.vision.v1.*;
 import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.MetadataConfig;
@@ -53,6 +56,9 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.vertexai.VertexAiChatModel;
 import dev.langchain4j.model.vertexai.VextexAiLanguageModel;
+
+// Vertex AI packages
+
 
 @RestController
 public class EventController {
@@ -124,7 +130,6 @@ public class EventController {
         return new ResponseEntity<String>(msg, HttpStatus.BAD_REQUEST);
     }
 
-
     try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
         List<AnnotateImageRequest> requests = new ArrayList<>();
         
@@ -183,7 +188,7 @@ public class EventController {
         List<String> labels = response.getLabelAnnotationsList().stream()
             .map(annotation -> annotation.getDescription())
             .collect(Collectors.toList());
-        logger.info("Annotations found:");
+        logger.info("Annotations found by Vision API:");
         for (String label: labels) {
             logger.info("- " + label);
         }
@@ -213,7 +218,7 @@ public class EventController {
                 likelihood != Likelihood.LIKELY && likelihood != Likelihood.VERY_LIKELY
             );
 
-            logger.info("Safe? " + isSafe);
+            logger.info("Is Image Safe? " + isSafe);
         }
 
         logger.info("Logo Annotations:");
@@ -221,6 +226,7 @@ public class EventController {
           logger.info("Logo: " + annotation.getDescription());
 
           List<Property> properties = annotation.getPropertiesList();
+          logger.info("Logo property list:");
           for (Property property : properties) {
             logger.info(String.format("Name: %s, Value: %s"), property.getName(), property.getValue());
           }
@@ -239,6 +245,9 @@ public class EventController {
           prompt += textElements;          
         }
 
+        // build alternative prompt using Vertex AI
+      //  extractTextFromImage(bucketName, fileName);
+
         Response<AiMessage> modelResponse = null;          
         if (prompt.length() > 0) {
           VertexAiChatModel vertexAiChatModel = VertexAiChatModel.builder()
@@ -247,7 +256,7 @@ public class EventController {
                       .location(zone)
                       .publisher("google")
                       .modelName("chat-bison@001")
-                      .temperature(1.0)
+                      .temperature(0.1)
                       .maxOutputTokens(50)
                       .topK(0)
                       .topP(0.0)
@@ -265,7 +274,7 @@ public class EventController {
                       .location(zone)
                       .publisher("google")
                       .modelName("text-bison@001")
-                      .temperature(1.0)
+                      .temperature(0.1)
                       .maxOutputTokens(50)
                       .topK(0)
                       .topP(0.0)
@@ -285,6 +294,15 @@ public class EventController {
     return new ResponseEntity<String>(msg, HttpStatus.OK);
   }
 
+
+  // private void extractTextFromImage(String bucketName, String fileName) throws IOException {
+  //     try (EndpointServiceClient endpointServiceClient = EndpointServiceClient.create()) {
+  //         EndpointName name =
+  //                 EndpointName.ofProjectLocationEndpointName("[PROJECT]", "[LOCATION]", "[ENDPOINT]");
+  //         Endpoint response = endpointServiceClient.getEndpoint(name);
+  //         logger.info("Endpoint description: " +response.getDescription());
+  //     }
+  // }
 
   private static String rgbHex(float red, float green, float blue) {
     return String.format("#%02x%02x%02x", (int)red, (int)green, (int)blue);
