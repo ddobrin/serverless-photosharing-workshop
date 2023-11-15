@@ -18,7 +18,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.source>21</maven.compiler.source>        
         <spring-cloud.version>2023.0.0-RC1</spring-cloud.version>
-        <testcontainers.version>1.19.1</testcontainers.version>
+        <testcontainers.version>1.19.2</testcontainers.version>
     </properties>
     <dependencies>
         <dependency>
@@ -64,7 +64,6 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-aiplatform</artifactId>
-            <version>0.4.0</version>
         </dependency>        
 
         <!-- Langchain4j packages -->
@@ -211,7 +210,7 @@
             <dependency>
                 <groupId>com.google.cloud</groupId>
                 <artifactId>libraries-bom</artifactId>
-                <version>26.26.0</version>
+                <version>26.27.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
